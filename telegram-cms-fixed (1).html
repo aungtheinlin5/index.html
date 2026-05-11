@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>thuetamm Feed</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink:    #0f0e0c;
+      --paper:  #f5f0e8;
+      --cream:  #ede8dd;
+      --accent: #c0392b;
+      --muted:  #7a7060;
+      --rule:   #d4cfc4;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--paper);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* Masthead */
+    header {
+      background: var(--ink);
+      color: var(--paper);
+      padding: 2rem 1.5rem 1.5rem;
+      border-bottom: 3px solid var(--accent);
+    }
+    .masthead-top {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: .5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .site-title {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(1.8rem, 5vw, 3rem);
+      font-weight: 900;
+      letter-spacing: -.02em;
+      line-height: 1;
+    }
+    .site-meta {
+      font-size: .72rem;
+      font-weight: 300;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      color: #a09888;
+    }
+    .dateline {
+      font-size: .72rem;
+      letter-spacing: .06em;
+      color: #a09888;
+      margin-top: .5rem;
+      text-transform: uppercase;
+      max-width: 1100px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      max-width: 1100px;
+      margin: 1.5rem auto 0;
+      padding: 0 1.5rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+    #fetch-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      padding: .55rem 1.25rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .82rem;
+      font-weight: 500;
+      cursor: pointer;
+      letter-spacing: .04em;
+      transition: opacity .2s;
+    }
+    #fetch-btn:hover    { opacity: .85; }
+    #fetch-btn:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Layout */
+    main {
+      max-width: 1100px;
+      margin: 1.5rem auto 0;
+      padding: 0 1.5rem 4rem;
+    }
+
+    /* Spinner */
+    #spinner {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 5rem 0;
+    }
+    .spin-ring {
+      width: 48px; height: 48px;
+      border: 3px solid var(--rule);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spin-label {
+      font-size: .75rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* Notices */
+    #error-box, #empty-box {
+      display: none;
+      background: var(--cream);
+      border: 1px solid var(--rule);
+      border-left: 4px solid var(--accent);
+      border-radius: 4px;
+      padding: 1.25rem 1.5rem;
+      font-size: .9rem;
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Section rule */
+    .section-rule {
+      display: none;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .section-rule span {
+      font-size: .68rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+    .section-rule::before, .section-rule::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+    }
+
+    /* Masonry */
+    #feed { columns: 1; column-gap: 1.5rem; }
+    @media (min-width: 640px) { #feed { columns: 2; } }
+    @media (min-width: 960px) { #feed { columns: 3; } }
+
+    /* Card */
+    .card {
+      break-inside: avoid;
+      background: #fff;
+      border: 1px solid var(--rule);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+      opacity: 0;
+      transform: translateY(18px);
+      animation: rise .4s ease forwards;
+    }
+    @keyframes rise { to { opacity: 1; transform: none; } }
+
+    /* Single image */
+    .card-image {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+      max-height: 360px;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .card-image:hover { opacity: .92; }
+
+    /* Video player */
+    .card-video {
+      width: 100%;
+      display: block;
+      max-height: 400px;
+      background: #000;
+      border-bottom: 1px solid var(--rule);
+    }
+
+    /* Video thumbnail with play button */
+    .video-thumb-wrap {
+      position: relative;
+      cursor: pointer;
+      border-bottom: 1px solid var(--rule);
+      background: #000;
+      overflow: hidden;
+    }
+    .video-thumb-wrap img {
+      width: 100%;
+      display: block;
+      max-height: 360px;
+      object-fit: cover;
+      opacity: .85;
+      transition: opacity .2s;
+    }
+    .video-thumb-wrap:hover img { opacity: .7; }
+    .play-btn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 56px;
+      height: 56px;
+      background: rgba(255,255,255,.92);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+      box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    }
+    .play-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: var(--accent);
+      margin-left: 3px;
+    }
+    .video-duration {
+      position: absolute;
+      bottom: .5rem;
+      right: .6rem;
+      background: rgba(0,0,0,.65);
+      color: #fff;
+      font-size: .68rem;
+      padding: .15rem .45rem;
+      border-radius: 3px;
+      letter-spacing: .04em;
+    }
+
+    /* Audio player — NEW */
+    .card-audio {
+      width: 100%;
+      padding: 1rem 1.25rem .5rem;
+      display: flex;
+      flex-direction: column;
+      gap: .5rem;
+      border-bottom: 1px solid var(--rule);
+      background: var(--cream);
+    }
+    .audio-meta {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    .audio-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .audio-icon svg {
+      width: 16px;
+      height: 16px;
+      fill: #fff;
+    }
+    .audio-title {
+      font-size: .8rem;
+      font-weight: 500;
+      color: var(--ink);
+      word-break: break-all;
+    }
+    .audio-player {
+      width: 100%;
+      height: 32px;
+    }
+
+    /* Gallery grid */
+    .card-gallery {
+      display: grid;
+      gap: 2px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .card-gallery.count-2 { grid-template-columns: 1fr 1fr; }
+    .card-gallery.count-3 { grid-template-columns: 1fr 1fr; }
+    .card-gallery.count-3 .gal-img:first-child { grid-column: 1 / -1; }
+    .card-gallery.count-4 { grid-template-columns: 1fr 1fr; }
+    .card-gallery.count-many { grid-template-columns: 1fr 1fr; }
+    .gal-img {
+      width: 100%;
+      aspect-ratio: 4/3;
+      object-fit: cover;
+      display: block;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .gal-img:hover { opacity: .88; }
+    .gal-more-wrap { position: relative; }
+    .gal-more-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15,14,12,.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    /* Card body */
+    .card-body { padding: 1.1rem 1.25rem 1.25rem; }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin-bottom: .7rem;
+      flex-wrap: wrap;
+    }
+    .card-date {
+      font-size: .68rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .card-badge {
+      font-size: .62rem;
+      background: var(--cream);
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      padding: .1rem .45rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--muted);
+    }
+    .card-badge.video-badge {
+      background: #1a1a2e;
+      border-color: #1a1a2e;
+      color: #fff;
+    }
+    .card-badge.audio-badge {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+    .card-text {
+      font-size: .92rem;
+      line-height: 1.65;
+      color: #2a2620;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .card-text a {
+      color: var(--accent);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .card-footer {
+      border-top: 1px solid var(--rule);
+      margin-top: 1rem;
+      padding-top: .75rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+      font-size: .72rem;
+      color: var(--muted);
+    }
+    .stat svg { width: 13px; height: 13px; fill: var(--muted); }
+
+    /* Lightbox */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.92);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #lightbox.open { display: flex; }
+    #lightbox img {
+      max-width: 92vw;
+      max-height: 90vh;
+      object-fit: contain;
+      border-radius: 4px;
+    }
+    #lightbox-close {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.5rem;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      line-height: 1;
+      opacity: .7;
+      transition: opacity .15s;
+    }
+    #lightbox-close:hover { opacity: 1; }
+
+    /* Video modal */
+    #video-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.95);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    #video-modal.open { display: flex; }
+    #video-modal video {
+      max-width: 94vw;
+      max-height: 88vh;
+      border-radius: 4px;
+      background: #000;
+    }
+    #video-modal-close {
+      position: absolute;
+      top: 1.25rem;
+      right: 1.5rem;
+      color: #fff;
+      font-size: 2rem;
+      cursor: pointer;
+      line-height: 1;
+      opacity: .7;
+      transition: opacity .15s;
+    }
+    #video-modal-close:hover { opacity: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- Image Lightbox -->
+  <div id="lightbox">
+    <span id="lightbox-close">&times;</span>
+    <img id="lightbox-img" src="" alt="" />
+  </div>
+
+  <!-- Video Modal -->
+  <div id="video-modal">
+    <span id="video-modal-close">&times;</span>
+    <video id="modal-video" controls playsinline></video>
+  </div>
+
+  <header>
+    <div class="masthead-top">
+      <span class="site-title" id="site-title">@thuetamm</span>
+      <span class="site-meta">Powered by Telegram</span>
+    </div>
+    <div class="dateline" id="dateline"></div>
+  </header>
+
+  <div class="toolbar">
+    <button id="fetch-btn">↻ Refresh</button>
+  </div>
+
+  <main>
+    <div id="spinner">
+      <div class="spin-ring"></div>
+      <span class="spin-label">Fetching posts…</span>
+    </div>
+    <div id="error-box"></div>
+    <div id="empty-box">Post မတွေ့ပါ။ Bot က Channel Admin ဖြစ်ပြီး Post အနည်းဆုံး တစ်ခု ပို့ထားဖို့ လိုပါတယ်။</div>
+    <div class="section-rule" id="section-rule"><span>Latest Posts</span></div>
+    <div id="feed"></div>
+  </main>
+
+  <script>
+    const TOKEN   = '8590519767:AAFco5djmqneNgq1xl7BQh_b9E3uw5gL-Jg';
+    const CHANNEL = '@thuetamm';
+    const LIMIT   = 20;
+    const BASE    = 'https://api.telegram.org';
+
+    const fetchBtn      = document.getElementById('fetch-btn');
+    const spinner       = document.getElementById('spinner');
+    const errorBox      = document.getElementById('error-box');
+    const emptyBox      = document.getElementById('empty-box');
+    const feed          = document.getElementById('feed');
+    const sectionRule   = document.getElementById('section-rule');
+    const siteTitleEl   = document.getElementById('site-title');
+    const datelineEl    = document.getElementById('dateline');
+    const lightbox      = document.getElementById('lightbox');
+    const lightboxImg   = document.getElementById('lightbox-img');
+    const videoModal    = document.getElementById('video-modal');
+    const modalVideo    = document.getElementById('modal-video');
+
+    // ── Lightbox ──────────────────────────────────
+    document.getElementById('lightbox-close').addEventListener('click', () => lightbox.classList.remove('open'));
+    lightbox.addEventListener('click', e => { if (e.target === lightbox) lightbox.classList.remove('open'); });
+    function openLightbox(src) { lightboxImg.src = src; lightbox.classList.add('open'); }
+
+    // ── Video Modal (FIX: type attribute + proper source) ─────────────────
+    document.getElementById('video-modal-close').addEventListener('click', closeVideoModal);
+    videoModal.addEventListener('click', e => { if (e.target === videoModal) closeVideoModal(); });
+    function openVideoModal(src) {
+      modalVideo.pause();
+      modalVideo.innerHTML = '';
+      const source = document.createElement('source');
+      source.src  = src;
+      source.type = 'video/mp4';
+      modalVideo.appendChild(source);
+      modalVideo.load();
+      videoModal.classList.add('open');
+      modalVideo.play().catch(() => {});
+    }
+    function closeVideoModal() {
+      modalVideo.pause();
+      modalVideo.innerHTML = '';
+      videoModal.classList.remove('open');
+    }
+
+    // ── Helpers ───────────────────────────────────
+    function show(el)      { el.style.display = 'flex'; }
+    function hide(el)      { el.style.display = 'none'; }
+    function showBlock(el) { el.style.display = 'block'; }
+    function setError(msg) { errorBox.textContent = '⚠ ' + msg; showBlock(errorBox); }
+    function clearUI() {
+      hide(spinner); hide(errorBox); errorBox.textContent = '';
+      hide(emptyBox); hide(sectionRule); feed.innerHTML = '';
+    }
+    function formatDate(unix) {
+      return new Date(unix * 1000).toLocaleDateString('en-GB', {
+        day: 'numeric', month: 'long', year: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    }
+    function formatDuration(secs) {
+      const m = Math.floor(secs / 60), s = secs % 60;
+      return `${m}:${String(s).padStart(2,'0')}`;
+    }
+    function esc(s) {
+      return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function linkify(text) {
+      return esc(text).replace(/(https?:\/\/[^\s]+)/g,
+        u => `<a href="${u}" target="_blank" rel="noopener">${u}</a>`);
+    }
+    function applyEntities(text, entities) {
+      if (!entities || !entities.length) return linkify(text);
+      const sorted = [...entities].sort((a,b) => a.offset - b.offset);
+      let out = '', pos = 0;
+      for (const e of sorted) {
+        if (e.offset > pos) out += linkify(text.slice(pos, e.offset));
+        const chunk = text.slice(e.offset, e.offset + e.length);
+        switch (e.type) {
+          case 'bold':      out += `<strong>${esc(chunk)}</strong>`; break;
+          case 'italic':    out += `<em>${esc(chunk)}</em>`; break;
+          case 'code':      out += `<code>${esc(chunk)}</code>`; break;
+          case 'text_link': out += `<a href="${e.url}" target="_blank" rel="noopener">${esc(chunk)}</a>`; break;
+          case 'url':       out += `<a href="${esc(chunk)}" target="_blank" rel="noopener">${esc(chunk)}</a>`; break;
+          default:          out += esc(chunk);
+        }
+        pos = e.offset + e.length;
+      }
+      if (pos < text.length) out += linkify(text.slice(pos));
+      return out;
+    }
+
+    // ── Telegram API ──────────────────────────────
+    async function tgGet(method, params = {}) {
+      const qs  = new URLSearchParams(params).toString();
+      const res = await fetch(`${BASE}/bot${TOKEN}/${method}${qs ? '?' + qs : ''}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      if (!json.ok) throw new Error(json.description || 'Telegram error');
+      return json.result;
+    }
+    async function getFileUrl(file_id) {
+      try {
+        const f = await tgGet('getFile', { file_id });
+        return `${BASE}/file/bot${TOKEN}/${f.file_path}`;
+      } catch { return null; }
+    }
+
+    // ── Gallery HTML ──────────────────────────────
+    function buildGallery(urls) {
+      if (!urls.length) return '';
+      if (urls.length === 1) {
+        return `<img class="card-image" src="${urls[0]}" alt="" loading="lazy"
+                     onclick="openLightbox('${urls[0]}')" />`;
+      }
+      const shown    = urls.slice(0, 4);
+      const leftover = urls.length - 4;
+      const countClass = urls.length === 2 ? 'count-2'
+                       : urls.length === 3 ? 'count-3'
+                       : urls.length === 4 ? 'count-4' : 'count-many';
+      const items = shown.map((url, i) => {
+        const isLast = i === 3 && leftover > 0;
+        if (isLast) {
+          return `<div class="gal-more-wrap">
+                    <img class="gal-img" src="${url}" alt="" loading="lazy" onclick="openLightbox('${url}')" />
+                    <div class="gal-more-overlay">+${leftover + 1}</div>
+                  </div>`;
+        }
+        return `<img class="gal-img" src="${url}" alt="" loading="lazy" onclick="openLightbox('${url}')" />`;
+      }).join('');
+      return `<div class="card-gallery ${countClass}">${items}</div>`;
+    }
+
+    // ── Video HTML ────────────────────────────────
+    function buildVideoThumb(videoUrl, thumbUrl, duration) {
+      const durationHtml = duration
+        ? `<span class="video-duration">${formatDuration(duration)}</span>` : '';
+
+      if (thumbUrl) {
+        return `<div class="video-thumb-wrap" onclick="openVideoModal('${videoUrl}')">
+                  <img src="${thumbUrl}" alt="Video thumbnail" loading="lazy" />
+                  <div class="play-btn">
+                    <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  </div>
+                  ${durationHtml}
+                </div>`;
+      } else {
+        // No thumbnail — inline video player with proper source + type
+        return `<video class="card-video" controls playsinline preload="metadata">
+                  <source src="${videoUrl}" type="video/mp4" />
+                  သင့် browser က video ကို support မလုပ်ပါ။
+                </video>`;
+      }
+    }
+
+    // ── Audio HTML (NEW — m4a / voice / audio support) ────────────────────
+    function buildAudio(audioUrl, fileName, duration) {
+      const durationHtml = duration ? ` · ${formatDuration(duration)}` : '';
+      const displayName  = fileName || 'Audio';
+      return `<div class="card-audio">
+                <div class="audio-meta">
+                  <div class="audio-icon">
+                    <svg viewBox="0 0 24 24">
+                      <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+                    </svg>
+                  </div>
+                  <span class="audio-title">${esc(displayName)}${durationHtml}</span>
+                </div>
+                <audio class="audio-player" controls preload="metadata">
+                  <source src="${audioUrl}" />
+                  သင့် browser က audio ကို support မလုပ်ပါ။
+                </audio>
+              </div>`;
+    }
+
+    // ── Build Card ────────────────────────────────
+    function buildCard(g, delay) {
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.style.animationDelay = delay + 'ms';
+
+      let mediaHtml = '';
+      let badgeLabel = '';
+
+      if (g.videoUrl) {
+        mediaHtml  = buildVideoThumb(g.videoUrl, g.thumbUrl, g.duration);
+        badgeLabel = `<span class="card-badge video-badge">▶ Video</span>`;
+      } else if (g.audioUrl) {
+        // FIX: audio/m4a support
+        mediaHtml  = buildAudio(g.audioUrl, g.audioFileName, g.duration);
+        badgeLabel = `<span class="card-badge audio-badge">♪ Audio</span>`;
+      } else if (g.imageUrls && g.imageUrls.length) {
+        mediaHtml  = buildGallery(g.imageUrls);
+        badgeLabel = g.imageUrls.length > 1
+          ? `<span class="card-badge">${g.imageUrls.length} Photos</span>`
+          : `<span class="card-badge">Photo</span>`;
+      }
+
+      const textHtml  = g.text
+        ? `<p class="card-text">${applyEntities(g.text, g.entities)}</p>` : '';
+      const viewsStat = g.views != null
+        ? `<div class="card-footer">
+             <span class="stat">
+               <svg viewBox="0 0 20 20"><path d="M10 3C5 3 1.73 7.11 1.05 10c.68 2.89 3.95 7 8.95 7s8.27-4.11 8.95-7C18.27 7.11 15 3 10 3zm0 12a5 5 0 110-10 5 5 0 010 10zm0-8a3 3 0 100 6 3 3 0 000-6z"/></svg>
+               ${g.views.toLocaleString()}
+             </span>
+           </div>` : '';
+
+      card.innerHTML = `
+        ${mediaHtml}
+        <div class="card-body">
+          <div class="card-meta">
+            <span class="card-date">${formatDate(g.date)}</span>
+            ${badgeLabel}
+          </div>
+          ${textHtml}
+          ${viewsStat}
+        </div>`;
+      return card;
+    }
+
+    // ── Main Load ─────────────────────────────────
+    async function loadFeed() {
+      clearUI();
+      fetchBtn.disabled = true;
+      show(spinner);
+
+      try {
+        let chatInfo;
+        try {
+          chatInfo = await tgGet('getChat', { chat_id: CHANNEL });
+        } catch(e) {
+          throw new Error('Channel ကို access မရပါ။ Bot က Channel Admin ဖြစ်ဖို့ လိုပါတယ်။ (' + e.message + ')');
+        }
+
+        siteTitleEl.textContent = chatInfo.title || CHANNEL;
+        datelineEl.textContent  = `@${chatInfo.username || CHANNEL} · ` +
+          new Date().toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+        // FIX: getUpdates က channel history ကို reliable မဖတ်နိုင်ဘူး။
+        // offset: -100 သုံးပြီး နောက်ဆုံး updates တွေ ယူတယ်။
+        const updates = await tgGet('getUpdates', {
+          offset: -100,
+          limit: 100,
+          allowed_updates: JSON.stringify(['channel_post'])
+        });
+
+        const targetId = String(chatInfo.id);
+        const rawPosts = updates
+          .filter(u => u.channel_post && String(u.channel_post.chat.id) === targetId)
+          .map(u => u.channel_post)
+          .sort((a, b) => a.date - b.date);
+
+        // ── Group by media_group_id ───────────────
+        const grouped  = [];
+        const groupMap = new Map();
+
+        for (const msg of rawPosts) {
+          // FIX: audio (m4a), voice ပါ detect လုပ်တယ်
+          const isVideo = !!(msg.video || msg.video_note || msg.animation);
+          const isPhoto = !!msg.photo;
+          const isAudio = !!(msg.audio || msg.voice);
+
+          // audio/voice အတွက် data ထုတ်ယူ
+          const audioObj = msg.audio || msg.voice || null;
+
+          if (msg.media_group_id) {
+            if (groupMap.has(msg.media_group_id)) {
+              const g = groupMap.get(msg.media_group_id);
+              if (isPhoto) g._photos.push(msg.photo[msg.photo.length - 1].file_id);
+              if (isVideo && !g._videoFileId) {
+                const vid = msg.video || msg.animation;
+                g._videoFileId  = vid ? vid.file_id : null;
+                g._thumbFileId  = vid && (vid.thumbnail || vid.thumb)
+                                  ? (vid.thumbnail || vid.thumb).file_id : null;
+                g.duration      = vid ? vid.duration : null;
+              }
+              // FIX: audio in group
+              if (isAudio && !g._audioFileId) {
+                g._audioFileId   = audioObj.file_id;
+                g.audioFileName  = audioObj.file_name || audioObj.title || 'audio';
+                g.duration       = audioObj.duration || null;
+              }
+              if (!g.text && (msg.caption || msg.text)) {
+                g.text     = msg.caption || msg.text || '';
+                g.entities = msg.caption_entities || msg.entities || [];
+              }
+              if (msg.views != null && g.views == null) g.views = msg.views;
+            } else {
+              const vid = msg.video || msg.animation;
+              const g = {
+                date:          msg.date,
+                text:          msg.caption || msg.text || '',
+                entities:      msg.caption_entities || msg.entities || [],
+                views:         msg.views ?? null,
+                _photos:       isPhoto ? [msg.photo[msg.photo.length - 1].file_id] : [],
+                _videoFileId:  isVideo && vid ? vid.file_id : null,
+                _thumbFileId:  isVideo && vid && (vid.thumbnail || vid.thumb)
+                                 ? (vid.thumbnail || vid.thumb).file_id : null,
+                duration:      isVideo && vid ? vid.duration
+                             : isAudio && audioObj ? audioObj.duration : null,
+                // FIX: audio fields
+                _audioFileId:  isAudio ? audioObj.file_id : null,
+                audioFileName: isAudio ? (audioObj.file_name || audioObj.title || 'audio') : null,
+                imageUrls:     [],
+                videoUrl:      null,
+                thumbUrl:      null,
+                audioUrl:      null,
+              };
+              groupMap.set(msg.media_group_id, g);
+              grouped.push(g);
+            }
+          } else {
+            // Standalone post
+            const vid = msg.video || msg.animation;
+            grouped.push({
+              date:          msg.date,
+              text:          msg.text || msg.caption || '',
+              entities:      msg.entities || msg.caption_entities || [],
+              views:         msg.views ?? null,
+              _photos:       isPhoto ? [msg.photo[msg.photo.length - 1].file_id] : [],
+              _videoFileId:  isVideo && vid ? vid.file_id : null,
+              _thumbFileId:  isVideo && vid && (vid.thumbnail || vid.thumb)
+                               ? (vid.thumbnail || vid.thumb).file_id : null,
+              duration:      isVideo && vid ? vid.duration
+                           : isAudio && audioObj ? audioObj.duration : null,
+              // FIX: audio fields
+              _audioFileId:  isAudio ? audioObj.file_id : null,
+              audioFileName: isAudio ? (audioObj.file_name || audioObj.title || 'audio') : null,
+              imageUrls:     [],
+              videoUrl:      null,
+              thumbUrl:      null,
+              audioUrl:      null,
+            });
+          }
+        }
+
+        // Sort newest first, limit
+        const sorted = grouped.sort((a,b) => b.date - a.date).slice(0, LIMIT);
+
+        hide(spinner);
+        if (!sorted.length) { showBlock(emptyBox); return; }
+        sectionRule.style.display = 'flex';
+
+        // ── Resolve file IDs → URLs in parallel ───
+        await Promise.all(sorted.map(async g => {
+          if (g._photos.length) {
+            g.imageUrls = (await Promise.all(g._photos.map(getFileUrl))).filter(Boolean);
+          }
+          if (g._videoFileId) {
+            g.videoUrl = await getFileUrl(g._videoFileId);
+          }
+          if (g._thumbFileId) {
+            g.thumbUrl = await getFileUrl(g._thumbFileId);
+          }
+          // FIX: audio URL resolve
+          if (g._audioFileId) {
+            g.audioUrl = await getFileUrl(g._audioFileId);
+          }
+        }));
+
+        sorted.forEach((g, i) => feed.appendChild(buildCard(g, i * 60)));
+
+      } catch(err) {
+        hide(spinner);
+        setError(err.message);
+      } finally {
+        fetchBtn.disabled = false;
+      }
+    }
+
+    fetchBtn.addEventListener('click', loadFeed);
+    datelineEl.textContent = new Date().toLocaleDateString('en-GB', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    });
+    loadFeed();
+  </script>
+</body>
+</html>
